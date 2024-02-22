@@ -1,0 +1,77 @@
+Program          -> PackageDecl UseDecl* Declaration* EOF ;
+
+PackageDecl      -> "pkg" IDENTIFIER ;
+UseDecl          -> "use" IDENTIFIER (":" IDENTIFIER)* ;
+
+Declaration      -> DataDecl | EnumDecl | UnionDecl | FuncDecl | TypeDecl | GenericDataDecl | GenericFuncDecl ;
+DataDecl         -> ("ex" )? IDENTIFIER "::" "data" "{" FieldList "}" Inheritance? ;
+EnumDecl         -> ("ex" )? IDENTIFIER "::" "enum" {" EnumList "}" Inheritance? ;
+UnionDecl        -> ("ex" )? IDENTIFIER "::" "union" "{" FieldList "}" ;
+FuncDecl         -> ("ex" )? IDENTIFIER "::" "fn" "(" ParamList? ")" MultiType? "->" Block ;
+TypeDecl         -> ("ex" )? IDENTIFIER "::" "type" "{" FuncList "}" ;
+InterfaceDecl     ->("ex" )? IDENTIFIER "::" "interface" "{" FuncProtoList "}" ;
+
+FuncList         -> FuncDecl* ;
+FuncProtoList    -> FuncProto ("," FuncProto)* ;
+FuncProto        -> IDENTIFIER :: "(" ParamList? ")" MultiType? ;
+
+FieldList        -> Field ("," Field)* ;
+Field            -> IDENTIFIER ":" Type ;
+
+EnumList         -> EnumMember ("," EnumMember)* ;
+EnumMember       -> IDENTIFIER ("=" Literal)? ;
+
+ParamList        -> Param ("," Param)* ;
+Param            -> IDENTIFIER ":" Type ;
+
+MultiType        -> Type ("," Type)* ;
+Type             -> PrimitiveType | ArrayType | PointerType | GenericType ;
+PrimitiveType    -> "string" | "void" | IntegerType | FloatingPointType | "rune" ;
+IntegerType      -> "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" ;
+FloatingPointType -> "f32" | "f64" ;
+ArrayType        -> "[" NUMBER "]" Type ;
+PointerType      -> "^"Type ;
+GenericType      -> IDENTIFIER "[" TypeParam "]" ;
+
+TypeParam        -> IDENTIFIER ;
+
+Block            -> "{" Declaration* Statement* "}" ;
+Statement        -> ExprStmt | ReturnStmt | ForStmt | AssertStmt | IfStmt ;
+ExprStmt         -> Expression ";" ;
+ReturnStmt       -> "return" Expression ";" ;
+ForStmt          -> "for" ForInit? ";" Expression? ";" ForUpdate? Block
+                 | "for" IDENTIFIER "<-" Expression Block
+                 | "for" Block ;
+AssertStmt       -> "assert" Expression ";" ;
+IfStmt           -> "if" Expression Block ( "else" ( IfStmt | Block ) )? ;
+
+ForInit          -> VarDecl | Expression ;
+ForUpdate        -> Expression ;
+
+Expression       -> Literal | Unary | Binary | Grouping | Variable | ArrayLiteral | CallExpression | Range ;
+CallExpression   -> IDENTIFIER "(" ExpressionList? ")"
+                 | IDENTIFIER "[" TypeParam "]" "(" ExpressionList? ")" ;
+
+Literal          -> NUMBER | STRING | "true" | "false" | "nil" | HexNumber | OctalNumber | BinaryNumber | RuneLiteral ;
+Exponent        -> "**";
+Unary            -> ("-" | "!") Expression ;
+Binary           -> Expression Operator Expression ;
+Grouping         -> "(" Expression ")" ;
+Variable         -> IDENTIFIER ;
+ArrayLiteral     -> "[" ExpressionList? "]" ;
+Range            -> Expression ".." Expression ;
+
+ExpressionList   -> Expression ("," Expression)* ;
+
+Operator         -> "+" | "-" | "*" | "/" | "=" | "!=" | "<" | "<=" | ">" | ">=" | "**" ;
+
+Inheritance      -> "-" IDENTIFIER ;
+
+
+IDENTIFIER       -> [a-zA-Z_][a-zA-Z_0-9]* ;
+NUMBER           -> [0-9]+ ("." [0-9]+)? ;
+STRING           -> '"' [^"]* '"' ;
+RuneLiteral      -> "'" . "'" ;
+HexNumber        -> "0x" [0-9a-fA-F]+ ;
+OctalNumber      -> "0o" [0-7]+ ;
+BinaryNumber     -> "0b" [01]+ ;
