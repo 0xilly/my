@@ -29,6 +29,21 @@ trait IVisitor[T] {
   def visit(node:InterfaceFnListNode): T
   def visit(node:InterfaceFnNode): T
 
+  def visit(node:DeferNode): T
+  def visit(node:DeferBlockNode): T
+
+  //statement
+  def visit(node:IfNode): T
+  def visit(node:ForNode): T
+  def visit(node:FieldNode): T
+  def visit(node:FieldInferNode): T
+  def visit(node:ForInfinitNode): T
+  def visit(node:ForRangeNode): T
+  def visit(node:RangeNode): T
+
+  //expr
+  def visit(node:CallNode): T
+
   def visit(node: LiteralNode): T
   def visit(node: UnaryNode): T
   def visit(node: BinaryNode): T
@@ -37,6 +52,7 @@ trait IVisitor[T] {
 
   def visit(node: TypeNode): T
   def visit(node: MultiTypeNode): T
+  def visit(node: MultiValueNode): T
  
 }
 

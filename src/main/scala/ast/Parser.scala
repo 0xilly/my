@@ -214,6 +214,110 @@ class Parser(val tokenize: Tokenize) {
     InterfaceFnNode(ident, args, ret)
   }
 
+  private def parse_defer():Node = {
+    val ident = consume(TokenKind.Defer)
+    val body = expression()
+    DeferNode(ident, body)
+  }
+
+  private def parse_defer_block():Node = {
+    val ident = consume(TokenKind.Defer)
+    val body = parse_block()
+    DeferBlockNode(ident, body)
+  }
+
+  private def parse_if():Node = {
+    val ident = consume(TokenKind.If)
+    val condition = expression()
+    val body = parse_block()
+    val else_body = if (check(TokenKind.Else)) {
+      advance()
+      if (check(TokenKind.If)) {
+        Some(parse_if())
+      } else {
+        Some(parse_block())
+      }
+    } else {
+      None
+    }
+    
+    IfNode(ident, condition, body, else_body)
+  }
+
+  private def parse_for():Node = {
+    val _for = if (check(TokenKind.OpenBrace)) {
+      return parse_for_infinit()
+    } else if (current().is_literal() && check(TokenKind.Assign, 1)) {
+      return parse_for_base()
+    } else  {
+      //Note(anita): maybe swap this with the base? - 2/22/2024
+      return parse_for_range()
+    }
+    _for
+  }
+
+  private def parse_for_infinit():Node = {
+    val ident = consume(TokenKind.For)
+    consume(TokenKind.OpenBrace)
+    val body = parse_block()
+    consume(TokenKind.CloseBrace)
+    ForInfinitNode(ident, body)
+  }
+
+  private def parse_for_base():Node = {
+    val ident = consume(TokenKind.For)
+    val condition = expression()
+    val body = parse_block()
+    ForNode(ident, condition, body)
+  }
+
+  private def parse_for_range():Node = {
+    val ident = consume(TokenKind.For)
+    val range = parse_range()
+    val body = parse_block()
+    ForRangeNode(ident, range, body)
+  }
+
+  private def parse_range():Node = {
+    val start = expression()
+    consume(TokenKind.Ellipsis)
+    val end = expression()
+    RangeNode(start, end)
+  }
+
+  private def parse_call():Node = {
+    val ident = consume(TokenKind.IdentLiteral)
+    val args = parse_fn_args()
+    CallNode(ident, args)
+  }
+
+  private def parse_multi_value():Node = {
+    val values:JList[Node] = new ArrayList[Node]()
+    while (!check(TokenKind.Assign, TokenKind.AssignInfer)) {
+      values.add(literal())
+      if (check(TokenKind.Comma)) {
+        advance()
+      }
+    }
+    MultiValueNode(values)
+  }
+
+  private def parse_field():Node = {
+    val idents = parse_multi_value()
+    consume(TokenKind.Colon)
+    val typ = parse_multi_type()
+    consume(TokenKind.Assign)
+    var expr = expression()
+    FieldNode(idents, typ, expr)
+  }
+
+  private def parse_field_infer():Node = {
+    val idents = parse_multi_value()
+    consume(TokenKind.AssignInfer)
+    val assign = expression()
+    FieldInferNode(idents, assign)
+  }
+
   private def parse_multi_type():Node = {
     val types:JList[Node] = new ArrayList[Node]()
     consume(TokenKind.OpenParen)
@@ -359,6 +463,8 @@ class Parser(val tokenize: Tokenize) {
   private def previous(): Token = at(index - 1)
   private def current(): Token = at(index)
   private def next(): Token = at(index + 1)
+
+  private def check(kind: TokenKind, n:Int): Boolean = at(index + n) == kind
 
   private def check(tokens: TokenKind*): Boolean = {
     var status = true

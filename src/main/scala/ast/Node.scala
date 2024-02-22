@@ -81,6 +81,51 @@ case class InterfaceFnNode(name:Token, args:Node, ret:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
+case class DeferBlockNode(ident:Token, body:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class DeferNode(ident:Token, body:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class FieldNode(values:Node, typ:Node, expr:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class FieldInferNode(values:Node, expr:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class IfNode(ident:Token, cond:Node, thenBody:Node, elseBody:Option[Node]) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class ForNode(ident:Token, cond:Node, body:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class ForInfinitNode(ident:Token, body:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class ForRangeNode(ident:Token, range:Node, body:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class RangeNode(start:Node, end:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+//Todo(anita): I need to still implement this
+//case class ForColletionNode(ident:Token, expr:Node, body:Node) extends Node {
+//  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+//}
+
+case class CallNode(name:Token, args:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
 case class LiteralNode(value:Token) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
@@ -106,5 +151,9 @@ case class TypeNode(typ:Token) extends Node {
 }
 
 case class MultiTypeNode(typ:JList[Node]) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class MultiValueNode(values:JList[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
