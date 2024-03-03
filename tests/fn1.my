@@ -1,0 +1,20 @@
+
+
+use std:mem/bump_allocator;
+
+Human :: data {
+    name: String,
+    age: i8,
+}
+
+human := @balloc(Human{"John", 20})
+
+add_age :: fn(own human: ^Human, age:i8): i32 -> {
+    human.age = human.age += age;
+    return human
+}
+
+modified_human : ^Human = add_age(human, 5)
+
+println(human.age) // errors because human is owned by add_age
+println(modified_human.age) // 25

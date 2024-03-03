@@ -105,6 +105,9 @@ enum TokenKind(val name:String, val value:String) extends Enumeration {
   case Construct extends TokenKind("Construct", "construct")
   case Destruct extends TokenKind("Destruct", "destruct")
   case As extends TokenKind("As", "as")
+  case Own extends TokenKind("Own", "own")
+  case Export extends TokenKind("Export", "ex")
+  case Global extends TokenKind("Global", "global")
 
   //Types
   case U8 extends TokenKind("U8", "u8")
@@ -181,162 +184,175 @@ case class Token(val kind:TokenKind, val lexme:String, val location:Location) {
       case _ => false
     }
   }
+
+  override def toString: String = s"${kind.name}(${lexme}) at ${location.line}:${location.column} in ${location.target}"
 }
 
 
-class Tokenize(val target:String) {
+class Tokenizer(val target:String) {
   private val path = Paths.get(target)
-  private val buffer = Files.readAllBytes(path)
+  private val buffer = Files.readString(path).toCharArray
   private var idx = 0
   private var line = 1
   private var column = 0
-  val tokens:JList[Token] = new util.ArrayList[Token]
+  var tokens: List[Token] = List[Token]()
+
+  def tokenize():List[Token] = {
+    while(idx < buffer.size) {
+      val tok = scan_token()
+      tokens = tokens :+ tok
+      advance()
+    }
+    tokens
+  }
 
   private def scan_token():Token = {
     val start = idx
     val tok: Token = current() match {
-      case '\n' => new Token(TokenKind.Eol, Location(target, start, line, column, idx))
-      case ' ' | '\r' | '\t' => new Token(TokenKind.Whitespace, Location(target, start, line, column, idx))
-      case '(' => new Token(TokenKind.OpenParen, Location(target, start, line, column, idx))
-      case ')' => new Token(TokenKind.CloseParen, Location(target, start, line, column, idx))
-      case '{' => new Token(TokenKind.OpenBrace, Location(target, start, line, column, idx))
-      case '}' => new Token(TokenKind.CloseBrace, Location(target, start, line, column, idx))
-      case '[' => new Token(TokenKind.OpenBracket, Location(target, start, line, column, idx))
-      case ']' => new Token(TokenKind.CloseBracket, Location(target, start, line, column, idx))
-      case ',' => new Token(TokenKind.Comma, Location(target, start, line, column, idx))
+      case '\n' => {
+        line += 1
+        return new Token(TokenKind.Eol, Location(target, start, line, column, idx))
+      }
+      case ' ' | '\r' | '\t' => return new Token(TokenKind.Whitespace, Location(target, start, line, column, idx))
+      case '(' => return new Token(TokenKind.OpenParen, Location(target, start, line, column, idx))
+      case ')' => return new Token(TokenKind.CloseParen, Location(target, start, line, column, idx))
+      case '{' => return new Token(TokenKind.OpenBrace, Location(target, start, line, column, idx))
+      case '}' => return new Token(TokenKind.CloseBrace, Location(target, start, line, column, idx))
+      case '[' => return new Token(TokenKind.OpenBracket, Location(target, start, line, column, idx))
+      case ']' => return new Token(TokenKind.CloseBracket, Location(target, start, line, column, idx))
+      case ',' => return new Token(TokenKind.Comma, Location(target, start, line, column, idx))
       case ':' => {
         if (check("::")) {
           advance(1)
-          new Token(TokenKind.Decelerator, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Decelerator, Location(target, start, line, column, idx))
         }
         if (check(":=")) {
           advance()
-          new Token(TokenKind.AssignInfer, Location(target, start, line, column, idx))
+          return new Token(TokenKind.AssignInfer, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Colon, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Colon, Location(target, start, line, column, idx))
       }
-      case ';' => new Token(TokenKind.Semicolon, Location(target, start, line, column, idx))
+      case ';' => return new Token(TokenKind.Semicolon, Location(target, start, line, column, idx))
       case '.' => {
         if (check("...")) {
           advance(2)
-          new Token(TokenKind.Ellipsis, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Ellipsis, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Dot, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Dot, Location(target, start, line, column, idx))
       }
       case '?' => {
         if (check("???")) {
           advance(2)
-          new Token(TokenKind.Todo, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Todo, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Question, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Question, Location(target, start, line, column, idx))
       }
-      case '@' => new Token(TokenKind.At, Location(target, start, line, column, idx))
-      case '$' => new Token(TokenKind.Dollar, Location(target, start, line, column, idx))
-      case '\\' => new Token(TokenKind.Backslash, Location(target, start, line, column, idx))
+      case '@' => return new Token(TokenKind.At, Location(target, start, line, column, idx))
+      case '$' => return new Token(TokenKind.Dollar, Location(target, start, line, column, idx))
+      case '\\' => return new Token(TokenKind.Backslash, Location(target, start, line, column, idx))
       case '+' => {
         if (check("+=")) {
           advance()
-          new Token(TokenKind.AddAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.AddAssign, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Add, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Add, Location(target, start, line, column, idx))
       }
       case '-' => {
         if (check("-=")) {
           advance()
-          new Token(TokenKind.SubAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.SubAssign, Location(target, start, line, column, idx))
         }
         if (check("->")) {
           advance()
-          new Token(TokenKind.RightArrow, Location(target, start, line, column, idx))
+          return new Token(TokenKind.RightArrow, Location(target, start, line, column, idx))
         }
 
-        new Token(TokenKind.Sub, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Sub, Location(target, start, line, column, idx))
       }
       case '*' => {
         if (check("*=")) {
           advance()
-          new Token(TokenKind.MulAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.MulAssign, Location(target, start, line, column, idx))
         }
         if (check("**")) {
           advance()
-          new Token(TokenKind.Pow, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Pow, Location(target, start, line, column, idx))
         }
         if (check("**=")) {
           advance(2)
-          new Token(TokenKind.PowAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.PowAssign, Location(target, start, line, column, idx))
         }
         new Token(TokenKind.Star, Location(target, start, line, column, idx))
       }
       case '/' => {
         if (check("/=")) {
           advance()
-          new Token(TokenKind.DivAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.DivAssign, Location(target, start, line, column, idx))
         }
         if (check("//")) {
-
-          new Token(TokenKind.Comment, Location(target, start, line, column, idx))
+          return scan_comment()
         }
-        new Token(TokenKind.Slash, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Slash, Location(target, start, line, column, idx))
       }
       case '%' => {
         if (check("%=")) {
           advance()
-          new Token(TokenKind.ModAssign, Location(target, start, line, column, idx))
+          return new Token(TokenKind.ModAssign, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Modulo, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Modulo, Location(target, start, line, column, idx))
       }
       case '&' => {
         if (check("&&")) {
           advance()
-          new Token(TokenKind.LogicalAnd, Location(target, start, line, column, idx))
+          return new Token(TokenKind.LogicalAnd, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.BitwiseAnd, Location(target, start, line, column, idx))
+        return new Token(TokenKind.BitwiseAnd, Location(target, start, line, column, idx))
       }
       case '|' => {
         if (check("||")) {
           advance()
-          new Token(TokenKind.LogicalOr, Location(target, start, line, column, idx))
+          return new Token(TokenKind.LogicalOr, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.BitwiseOr, Location(target, start, line, column, idx))
+        return new Token(TokenKind.BitwiseOr, Location(target, start, line, column, idx))
       }
 
-      case '^' => new Token(TokenKind.Carrot, Location(target, start, line, column, idx))
-      case '~' => new Token(TokenKind.BitwiseNot, Location(target, start, line, column, idx))
+      case '^' => return new Token(TokenKind.Carrot, Location(target, start, line, column, idx))
+      case '~' => return new Token(TokenKind.BitwiseNot, Location(target, start, line, column, idx))
       case '=' => {
         if (check("==")) {
           advance()
-          new Token(TokenKind.Equal, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Equal, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.Assign, Location(target, start, line, column, idx))
+        return new Token(TokenKind.Assign, Location(target, start, line, column, idx))
       }
       case '!' => {
         if (check("!=")) {
           advance()
-          new Token(TokenKind.NotEqual, Location(target, start, line, column, idx))
+          return new Token(TokenKind.NotEqual, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.LogicalNot, Location(target, start, line, column, idx))
+        return new Token(TokenKind.LogicalNot, Location(target, start, line, column, idx))
       }
       case '<' => {
         if (check("<=")) {
           advance()
-          new Token(TokenKind.LessThanOrEqual, Location(target, start, line, column, idx))
+          return new Token(TokenKind.LessThanOrEqual, Location(target, start, line, column, idx))
         }
         if (check("<<")) {
           advance()
-          new Token(TokenKind.BitwiseLeftShift, Location(target, start, line, column, idx))
+          return new Token(TokenKind.BitwiseLeftShift, Location(target, start, line, column, idx))
         }
         if (check("<-")) {
           advance()
-          new Token(TokenKind.LeftArrow, Location(target, start, line, column, idx))
+          return new Token(TokenKind.LeftArrow, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.LessThan, Location(target, start, line, column, idx))
+        return new Token(TokenKind.LessThan, Location(target, start, line, column, idx))
       }
       case '>' => {
         if (check(">=")) {
           advance()
-          new Token(TokenKind.GreaterThanOrEqual, Location(target, start, line, column, idx))
+          return new Token(TokenKind.GreaterThanOrEqual, Location(target, start, line, column, idx))
         }
-        new Token(TokenKind.GreaterThan, Location(target, start, line, column, idx))
+        return new Token(TokenKind.GreaterThan, Location(target, start, line, column, idx))
       }
       //check digits or letters
       case _ => {
@@ -345,9 +361,9 @@ class Tokenize(val target:String) {
         } else if (Character.isLetter(current()) || check("_")) {
           val ident = concat_ident()
           val kind = TokenKind.values.find(_.value == ident).getOrElse(TokenKind.IdentLiteral)
-          Token(kind, ident, Location(target, start, line, column, idx))
+          return Token(kind, ident, Location(target, start, line, column, idx))
         } else {
-          new Token(TokenKind.Eof, Location(target, start, line, column, idx))
+          return new Token(TokenKind.Eof, Location(target, start, line, column, idx))
         }
       }
     }
@@ -392,7 +408,6 @@ class Tokenize(val target:String) {
       }
       return Token(TokenKind.DecimalLiteral, new String(buffer, start, idx - start), Location(target, start, line, column, idx))
     }
-
     return Token(TokenKind.IntLiteral, new String(buffer, start, idx - start), Location(target, start, line, column, idx))
   }
   
@@ -401,9 +416,10 @@ class Tokenize(val target:String) {
     while(Character.isLetterOrDigit(current()) || current() == '_') {
       advance()
     }
-    new String(buffer, start, idx - start)
+    val str = new String(buffer, start, idx - start)
+    idx -= 1
+    return str
   }
-
 
   private def scan_comment():Token = {
     val start = idx
@@ -411,16 +427,14 @@ class Tokenize(val target:String) {
       advance()
     }
     val comment = new String(buffer, start, idx - start)
-    idx -= 1;
-    new Token(TokenKind.Comment, comment, Location(target, start, line, column, idx))
+    idx -= 1
+    return Token(TokenKind.Comment, comment, Location(target, start, line, column, idx))
   }
-
 
   private def advance(n:Int):Unit = {
     idx += n
     column += n
   }
-
 
   private def at(n:Int):Char = buffer(idx + n).toChar
   private def previous():Char = this.at(-1)

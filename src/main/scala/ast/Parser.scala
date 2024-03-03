@@ -1,13 +1,10 @@
 package io.ansan.my
 package ast
 
-import token.{Token, TokenKind, Tokenize}
+import token.{Token, TokenKind, Tokenizer}
 
-import java.util.{List => JList}
-import java.util.ArrayList
-
-class Parser(val tokenize: Tokenize) {
-  val tokens = tokenize.tokens
+class Parser(val tokenize: Tokenizer) {
+  private val tokens = tokenize.tokens
   private var index = 0
   
   def expression():Node = {
@@ -19,11 +16,40 @@ class Parser(val tokenize: Tokenize) {
   }
 
   def parse():Node = {
-    expression()
+    ???
+  }
+
+  private def parse_pkg():Node = {
+    val pkg = consume(TokenKind.Pkg)
+    val ident = consume(TokenKind.IdentLiteral)
+    consume(TokenKind.Eol)
+    PkgNode(pkg, ident)
+  }
+
+  private def parse_use():Node = {
+    val use = consume(TokenKind.Use)
+    val moudel = consume(TokenKind.IdentLiteral)
+    consume(TokenKind.Colon)
+    ???
+  }
+
+  private def parse_use_path():Node = {
+    var path = List[Token]()
+    while (check(TokenKind.Eol)) {
+      advance()
+      path = path :+ consume(TokenKind.IdentLiteral)
+    }
+    UsePathNode(path)
   }
 
   // declarations 
   private def parse_declaration():Node = {
+    /**
+     * 
+     *
+     * Fixme(antia): This is not done implement this for the rest of the declarations
+     */
+    val ex = parse_export()
     val ident = consume(TokenKind.IdentLiteral)
     consume(TokenKind.Decelerator)
 
@@ -39,6 +65,19 @@ class Parser(val tokenize: Tokenize) {
 
   }
 
+  private def parse_export():Option[Node] = {
+    val ex = optional_consume(TokenKind.Export)
+    if (ex.isEmpty) return None
+
+    val open = optional_consume(TokenKind.OpenParen)
+    if (open.isDefined) {
+      val token = consume(TokenKind.Pkg, TokenKind.Global)
+      consume(TokenKind.CloseParen)
+      return Some(ExportNode(Some(token)))
+    }
+    Some(ExportNode(None))
+  }
+
   private def parse_function_declaration(ident:Token):Node = {
     ???
   }
@@ -48,6 +87,7 @@ class Parser(val tokenize: Tokenize) {
   }
 
   private def parse_struct_declaration(ident:Token):Node = {
+    
     ???
   }
 
@@ -67,11 +107,11 @@ class Parser(val tokenize: Tokenize) {
     EnumNode(_ident, members, typ)
   }
 
-  private def parse_enum_members():JList[Node] = {
-    var members:JList[Node] = new ArrayList[Node]()
+  private def parse_enum_members():List[Node] = {
+    var members = List[Node]()
 
     while (check(TokenKind.IdentLiteral)) {
-      members.add(parse_enum_member_declaration())
+      members = members :+ parse_enum_member_declaration()
       if (check(TokenKind.Eol)) {
         advance()
       }
@@ -106,10 +146,10 @@ class Parser(val tokenize: Tokenize) {
     DataNode(_ident, members, parent)
   }
 
-  private def parse_data_members():JList[Node] = {
-    var members:JList[Node] = new ArrayList[Node]()
+  private def parse_data_members():List[Node] = {
+    var members = List[Node]()
     while (check(TokenKind.IdentLiteral)) {
-      members.add(parse_data_member_declaration())
+      members = members :+ parse_data_member_declaration()
       if (check(TokenKind.Eol)) {
         advance()
       }
@@ -132,10 +172,10 @@ class Parser(val tokenize: Tokenize) {
     UnionNode(_ident, members)
   }
 
-  private def parse_union_members():JList[Node] = {
-    var members:JList[Node] = new ArrayList[Node]()
+  private def parse_union_members():List[Node] = {
+    var members = List[Node]()
     while (check(TokenKind.IdentLiteral)) {
-      members.add(parse_union_member_declaration())
+      members = members :+ parse_union_member_declaration()
       if (check(TokenKind.Eol)) {
         advance()
       }
@@ -149,20 +189,20 @@ class Parser(val tokenize: Tokenize) {
   }
 
   def parse_block():Node = {
-    val body:JList[Node] = new ArrayList[Node]()
+    var body = List[Node]()
     consume(TokenKind.OpenBrace)
     while (!check(TokenKind.CloseBrace)) {
-      body.add(parse_declaration())
+      body = body :+ parse_declaration()
     }
     consume(TokenKind.CloseBrace)
     BlockNode(body)
   }
 
   private def parse_fn_args():Node = {
-    val args:JList[Node] = new ArrayList[Node]()
+    var args:List[Node] = List[Node]()
     consume(TokenKind.OpenParen)
     while (!check(TokenKind.CloseParen)) {
-      args.add(parse_fn_arg())
+      args = args :+ parse_fn_arg()
       if (check(TokenKind.Comma)) {
         advance()
       }
@@ -172,10 +212,11 @@ class Parser(val tokenize: Tokenize) {
   }
 
   private def parse_fn_arg():Node = {
+    val own = optional_consume(TokenKind.Own)
     val ident = consume(TokenKind.IdentLiteral)
     consume(TokenKind.Colon)
     val typ = parse_type()
-    FnArgNode(ident, typ)
+    FnArgNode(own, ident, typ)
   }  
 
   private def parse_interface_declaration(ident:Token):Node = {
@@ -192,10 +233,10 @@ class Parser(val tokenize: Tokenize) {
   }
 
   private def parse_interface_fn_list():Node = {
-    val members:JList[Node] = new ArrayList[Node]()
+    var members:List[Node] =  List[Node]()
     consume(TokenKind.OpenBrace)
     while (!check(TokenKind.CloseBrace)) {
-      members.add(parse_interface_fn())
+      members = members :+ parse_interface_fn()
       if (check(TokenKind.Eol)) {
         advance()
       }
@@ -284,17 +325,18 @@ class Parser(val tokenize: Tokenize) {
     val end = expression()
     RangeNode(start, end)
   }
-
-  private def parse_call():Node = {
-    val ident = consume(TokenKind.IdentLiteral)
-    val args = parse_fn_args()
-    CallNode(ident, args)
+  
+  //call -> primary ( "(" arguments ")" | "." ident )*
+  private def parse_arg_call():Node = {
+    ???
   }
+  
+
 
   private def parse_multi_value():Node = {
-    val values:JList[Node] = new ArrayList[Node]()
+    var values:List[Node] = List[Node]()
     while (!check(TokenKind.Assign, TokenKind.AssignInfer)) {
-      values.add(literal())
+      values = values :+ literal()
       if (check(TokenKind.Comma)) {
         advance()
       }
@@ -318,11 +360,36 @@ class Parser(val tokenize: Tokenize) {
     FieldInferNode(idents, assign)
   }
 
+  private def parse_array_initializer():Node = {
+    var values:List[Node] = List[Node]()
+    while (!check(TokenKind.CloseBracket)) {
+      values = values :+ expression()
+      if (check(TokenKind.Comma)) {
+        advance()
+      }
+    }
+    ArrayInitializerNode(values)
+  }
+
+  private def parse_slice():Node = {
+    val ident = literal()
+    val open = consume(TokenKind.OpenBracket)
+    val lit = ident.asInstanceOf[LiteralNode]
+    if (distance(open, lit.value) != 1) {
+      throw new RuntimeException(s"Expected slice")
+    }
+    val start = expression()
+    consume(TokenKind.Colon)
+    val end = expression()
+    consume(TokenKind.CloseBracket)
+    ArraySliceNode(ident, start, end)
+  }
+
   private def parse_multi_type():Node = {
-    val types:JList[Node] = new ArrayList[Node]()
+    var types = List[Node]()
     consume(TokenKind.OpenParen)
     while (!check(TokenKind.CloseParen)) {
-      types.add(parse_type())
+      types = types :+ parse_type()
       if (check(TokenKind.Comma)) {
         advance()
       }
@@ -332,15 +399,50 @@ class Parser(val tokenize: Tokenize) {
   }
 
   private def parse_type():Node = {
+    if (check(TokenKind.OpenParen)) {
+      parse_multi_type()
+    } else if (check(TokenKind.OpenBracket)) {
+      parse_array_type()
+    } else if (check(TokenKind.Carrot)) {
+      parse_pointer_type()
+    } else {
+      parse_base_type()
+    }
+  }
+
+  //parse array_type []type
+  private def parse_array_type():Node = {
+    consume(TokenKind.OpenBracket)
+    val ident = optional_consume(TokenKind.IdentLiteral, TokenKind.IntLiteral)
+    val close = consume(TokenKind.CloseBracket)
+    val typ = parse_base_type() //Note(anita): Maybe this should be literal and an optional for literal? - 2/28/2024
+    //Type location must be +1 in the source location of the ] token
+    val node = typ.asInstanceOf[TypeNode]
+    if (distance(close, node.typ) != 1) {
+      throw new RuntimeException(s"the format for array type is []type")
+    }
+
+    TypeArrayNode(ident, typ)
+  }
+
+  private def parse_pointer_type():Node = {
+    val carrot = consume(TokenKind.Carrot)
+    val typ = parse_base_type()
+    val node = typ.asInstanceOf[TypeNode]
+    if (distance(carrot, node.typ) != 1) {
+      throw new RuntimeException(s"Format for pointer type is ^type")
+    }
+    TypePointerNode(carrot, typ)
+  }
+
+  private def parse_base_type():Node = {
     val typ = current()
     if (!typ.is_type()) {
-      throw new RuntimeException(s"Expected type, but got ${typ.kind}")
+      throw new RuntimeException(s"Expected base type, but got ${typ.kind}")
     }
     advance()
     TypeNode(typ)
   }
-
-
 
   //equality → comparison ( ( "!=" | "==" ) comparison )* ;
   //comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -351,47 +453,69 @@ class Parser(val tokenize: Tokenize) {
   //parimary
   //
   private def equality():Node = {
-    var node = comparison()
+    var left = comparison()
     while (check(TokenKind.NotEqual, TokenKind.Equal)) {
       val op = current()
       advance()
       val right = comparison()
-      node = BinaryNode(node, op, right)
+      left = BinaryNode(left, op, right)
     }
-    node
+    left
+  }
+
+  private def logical_and():Node = {
+    var left = equality()
+    while (check(TokenKind.LogicalAnd)) {
+      val op = current()
+      advance()
+      val right = equality()
+      left = BinaryNode(left, op, right)
+    }
+    left
+  }
+
+  private def logical_or():Node = {
+    var left = logical_and()
+    while (check(TokenKind.LogicalOr)) {
+      val op = current()
+      advance()
+      val right = logical_and()
+      left = BinaryNode(left, op, right)
+    }
+    left
   }
   
   private def comparison():Node = {
-    var node = term()
+    var left = term()
     while (check(TokenKind.GreaterThan, TokenKind.GreaterThanOrEqual, TokenKind.LessThan, TokenKind.LessThanOrEqual)) {
       val op = current()
       advance()
       val right = term()
-      node = BinaryNode(node, op, right)
+      left = BinaryNode(left, op, right)
     }
-    node
+    left
   }
   
   private def term():Node = {
-    var node = factor()
+    var left = factor()
     while (check(TokenKind.Sub, TokenKind.Add)) {
       val op = current()
       advance()
       val right = factor()
-      node = BinaryNode(node, op, right)
+      left = BinaryNode(left, op, right)
     }
-    node
+    left
   }
   
   private def factor():Node = {
-    var node = unary()
+    var left = unary()
     while (check(TokenKind.Slash, TokenKind.Star)) {
       val op = current()
       advance()
       val right = unary()
-      node = BinaryNode(node, op, right)
+      left = BinaryNode(left, op, right)
     }
-    node
+    left
   }
 
   private def unary():Node = {
@@ -425,6 +549,8 @@ class Parser(val tokenize: Tokenize) {
       throw new RuntimeException(s"Expected literal, but got ${tok.kind}")
     }
   }
+
+  ////////////// SOURCE TRAVERSAL  ///////////////
   
   private def consume(kind: TokenKind): Token = {
     if (check(kind)) {
@@ -434,6 +560,17 @@ class Parser(val tokenize: Tokenize) {
     } else {
       throw new RuntimeException(s"Expected $kind, but got ${current().kind}")
     }
+  }
+
+  private def consume(kind: TokenKind*): Token = {
+    for (i <- kind.indices) {
+      if (check(kind(i))) {
+        val tok = current()
+        advance()
+        return tok
+      }
+    }
+    throw new RuntimeException(s"Expected $kind, but got ${current().kind}")
   }
 
   private def consume(kind: TokenKind, message: String): Token = {
@@ -456,10 +593,21 @@ class Parser(val tokenize: Tokenize) {
     }
   }
 
+  private def optional_consume(token:TokenKind*): Option[Token] = {
+    for (i <- token.indices) {
+      if (check(token(i))) {
+        val tok = current()
+        advance()
+        return Some(tok)
+      }
+    }
+    None
+  }
+
   private def advance(int: Int): Unit = index += int
   private def advance(): Unit = advance(1)
 
-  private def at(index: Int): Token = tokens.get(index)
+  private def at(i: Int): Token = tokens(i)
   private def previous(): Token = at(index - 1)
   private def current(): Token = at(index)
   private def next(): Token = at(index + 1)
@@ -476,5 +624,7 @@ class Parser(val tokenize: Tokenize) {
     }
     status
   }
+
+  private def distance(token: Token, token2: Token): Int = token2.location.start - token.location.end
 
 }

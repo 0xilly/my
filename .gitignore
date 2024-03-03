@@ -4,3 +4,5 @@ target
 .metals
 .bloop
 project
+!project/build.properties
+!project/plugins.sbt

@@ -1,23 +1,31 @@
 package io.ansan.my
 package ast
 
-import java.util.{List => JList}
-
-import io.ansan.my.token.Token
+import token.Token
 
 trait Node {
   def accept[T](visitor:IVisitor[T]):T
 }
 
-case class PkgNode(name:Token, body:JList[Node]) extends Node {
+case class PkgNode(name:Token, ident: Token) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class UseNode(name:Token, path: UseNodePath) extends Node {
+case class UseNode(name:Token, module:Token, path: Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+
+  def path_to_string: String = {
+    val path_node = path.asInstanceOf[UsePathNode]
+    var str = ""
+    path_node.tokens.foreach(t => {
+      str +: t.lexme
+      str +: "/"
+    })
+    str
+  }
 }
 
-case class UseNodePath(token:JList[Token]) extends Node {
+case class UsePathNode(tokens:List[Token]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -29,7 +37,11 @@ case class StmtNode(stmt:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class EnumNode(name:Token, body:JList[Node], typ:Option[Node]) extends Node {
+case class ExportNode(name:Option[Token]) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class EnumNode(name:Token, body:List[Node], typ:Option[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -37,7 +49,7 @@ case class EnumMemberNode(name:Token, value:Option[Token]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class DataNode(name:Token, body:JList[Node], parent:Option[Node]) extends Node {
+case class DataNode(name:Token, body:List[Node], parent:Option[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -45,7 +57,7 @@ case class DataMemberNode(name:Token, typ:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class UnionNode(name:Token, body:JList[Node]) extends Node {
+case class UnionNode(name:Token, body:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -53,7 +65,7 @@ case class UnionMemberNode(typ:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class BlockNode(body:JList[Node]) extends Node {
+case class BlockNode(body:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -61,11 +73,11 @@ case class FnNode(name:Token, args:FnArgListNode, ret:Node, body:BlockNode) exte
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class FnArgListNode(args:JList[Node]) extends Node {
+case class FnArgListNode(args:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class FnArgNode(name:Token, typ:Node) extends Node {
+case class FnArgNode(owned:Option[Token], name:Token, typ:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -73,7 +85,7 @@ case class InterfaceNode(name:Token, body:Node, parent:Option[Node]) extends Nod
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class InterfaceFnListNode(members:JList[Node]) extends Node {
+case class InterfaceFnListNode(members:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -122,7 +134,11 @@ case class RangeNode(start:Node, end:Node) extends Node {
 //  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 //}
 
-case class CallNode(name:Token, args:Node) extends Node {
+case class CallNode(path:List[Node], args:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class CallArgListNode(args:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -138,7 +154,7 @@ case class BinaryNode(left:Node, op:Token, right:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class ArrayInizializerNode(elements:JList[Node]) extends Node {
+case class ArrayInitializerNode(elements:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
@@ -150,10 +166,18 @@ case class TypeNode(typ:Token) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class MultiTypeNode(typ:JList[Node]) extends Node {
+case class TypeArrayNode(size:Option[Token], typ:Node) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }
 
-case class MultiValueNode(values:JList[Node]) extends Node {
+case class TypePointerNode(carrot:Token, typ:Node) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class MultiTypeNode(typ:List[Node]) extends Node {
+  override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
+}
+
+case class MultiValueNode(values:List[Node]) extends Node {
   override def accept[T](visitor: IVisitor[T]): T = visitor.visit(this)
 }

@@ -5,10 +5,12 @@ trait IVisitor[T] {
 
   def visit(node:PkgNode): T
   def visit(node:UseNode): T
-  def visit(node:UseNodePath): T
+  def visit(node:UsePathNode): T
 
   def visit(node:ExprNode): T
   def visit(node:StmtNode): T
+  
+  def visit(node:ExportNode): T
 
   def visit(node:EnumNode): T
   def visit(node:EnumMemberNode): T
@@ -43,16 +45,19 @@ trait IVisitor[T] {
 
   //expr
   def visit(node:CallNode): T
+  def visit(node:CallArgListNode): T
 
-  def visit(node: LiteralNode): T
-  def visit(node: UnaryNode): T
-  def visit(node: BinaryNode): T
-  def visit(node: ArrayInizializerNode): T
-  def visit(node: ArraySliceNode): T
+  def visit(node:LiteralNode): T
+  def visit(node:UnaryNode): T
+  def visit(node:BinaryNode): T
+  def visit(node:ArrayInitializerNode): T
+  def visit(node:ArraySliceNode): T
 
-  def visit(node: TypeNode): T
-  def visit(node: MultiTypeNode): T
-  def visit(node: MultiValueNode): T
- 
+  def visit(node:TypeNode): T
+  def visit(node:TypeArrayNode): T
+  def visit(node:TypePointerNode): T
+  def visit(node:MultiTypeNode): T
+  def visit(node:MultiValueNode): T
+
 }
 
